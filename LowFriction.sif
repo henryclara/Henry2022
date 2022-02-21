@@ -15,7 +15,6 @@ $eta = 1.0/(2.0*A)^(1.0/n)
 $gravity = -9.8*yearinsec^2
 $C = 3.812e6/(1.0e6*yearinsec^(1.0/3.0))
 
-
 Header
   Mesh DB "." "Mesh"
 End
