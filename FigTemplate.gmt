@@ -1,0 +1,127 @@
+#!/bin/csh
+
+
+## Version 0 of a GMT Template for Figure 1 of papers
+## To Does:
+## 1. Move away from csh to bash? Somehow filechecking does not work
+## 2. Include some goodies (e.g., gdalwarp etc ) as functions?
+## 3. Get a larger excerpt from the Radarsat template from QGis esd/share/gis/qgis/....
+## 4. Maybe have more relative positioning to minimize handtuning
+
+
+# Set figure output Files
+set PlotPs = "FigureExample.ps"
+set PlotPdf = "FigureExample.pdf"
+
+# Set projection and area of interest.
+# This assumes that all rasters are in
+# a geographic projection (EPSG 4326.
+# Change size of plot by chaning scale. 1:1500000.0"
+set LJ = "-Js25/-90/-71/1:500000.0"
+set LR = "-R23.4/26.7/-70.7/-70.0/"
+
+# Those are the parameters for the continental
+# inset if wished for.
+set J_Antarctica = "-Js0/-90/-70.7/1:300000000"
+set R_Antarctica = "-R-180/180/-89.9/-61/"
+
+## Define some subdirectories to keep
+## things clean.
+set RasterDir = "rasters"
+set XYDir = "xyfiles"
+set CPTDir = "cpts"
+
+## Choose background grdimage
+set BackgroundImage = "${RasterDir}/Radarsat_ROI.geo.tif"
+## Continental grounding line for Inset
+set ContinentalGL = "${XYDir}/ASAID_groundingline.lowres.txt"
+set Rumple = "${XYDir}/rumple1.txt"
+
+## Usful goodies.
+#-----------------------------------------------------------------------------------
+## Get XY from SHP Files Example:
+# >  set SHP_IN = "test.shp"
+# >  set ASCII_OUT = "test.txt"
+# >  ogr2ogr -f "CSV" tmp.csv ${SHP_IN} -lco GEOMETRY=AS_WKT
+# >  cat tmp.csv|\
+# >  sed '1d'| sed 's/"LINESTRING (//' | sed 's/)",1//' | tr ',' '\n' > ${ASCII_OUT}
+
+## Usful goodies.
+#-----------------------------------------------------------------------------------
+## Get Geographic Raster from PS Raster to Geo raster
+# >  gdalwarp -srcnodata "0" -dstnodata "NaN"  -s_srs EPSG:3031 -t_srs EPSG:4326 -te 24 -71.2 28 -70.0 PolarStereographicRaster.tif Raster.geo.tif
+# >  gdal_translate -of GMT Raster.geo.tif Raster.geo.grd
+
+## Usful goodies.
+#-----------------------------------------------------------------------------------
+## Lon Lat to PS and vice versa (add -I)
+# > cat lola.txt| proj +proj=stere +lat_ts=-71 +lat_0=-90 +lon_0=0 +ellps=WGS84 -I -f "%.8f" > ps.txt
+
+# Get rid of output from previous runs.
+rm $PlotPs
+rm $PlotPdf
+
+#Set GMT defaults (dd not dms)
+gmt gmtset FORMAT_GEO_MAP D.xxxx
+gmt gmtset MAP_FRAME_TYPE fancy #plain #inside
+
+
+## Main Panel
+#-----------------------------------------------------------------------------------
+echo "Starting Basemap..."
+gmt psbasemap $LJ $LR -Xc -Yc -Ba10g50/a10g50  --MAP_ANNOT_MIN_SPACING=5c  -K   > ${PlotPs}
+
+if ( -e "cpts/Radarsat.cpt" ) then #File check does not work. Better used bash.
+  echo "Create CPT for Radarsat.."
+  #gmt grd2cpt -Cgray -S100 -L100/250 ${BackgroundImage} > cpts/Radarsat.cpt
+else
+  echo "CPT already there. Do not do it again."
+endif
+gmt grdimage ${BackgroundImage} -Ccpts/Radarsat.cpt $LJ $LR -V  -O -K -Q  >> ${PlotPs}
+
+## Add the grounding line
+cat ${Rumple} | proj +proj=stere +lat_ts=-71 +lat_0=-90 +lon_0=0 +ellps=WGS84 -f "%.8f" -I |\
+gmt psxy $LJ $LR  -Sc0.07 -Gred  -O -K -V  >> ${PlotPs}
+
+##Example for a legend.
+##---------------------------------
+# echo "And the Legend ..."
+# gmt pslegend  $LR $LJ -D24.8/-70.3/8.4c/4.1c/BL -V -O -K -Gwhite -P -t20 --FONT_ANNOT_PRIMARY=+11p << EOF >> ${PlotPs}
+# ##H 24 Times-Roman Legend
+# #D 0.2i 1p
+# M - -71 60+u f
+# D 0.2i 0p
+# S 0.1i v 0.2/0.02i/0.06i/0.05i 255/255/255 0.25p,red 0.5i AWI UWB radar profile
+# D 0.2i 0p
+# S 0.1i v 0.2/0.02i/0.06i/0.05i 255/255/255 0.25p,green 0.2i GL, Bindschadler et al., T. Cryosphere., 2011
+# EOF
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+## Finish of the Main panel with annotations ...
+gmt psbasemap $LJ $LR -Ba2g50/a0.5g50    -O -K -V >> ${PlotPs}
+
+# Continental Inset of Antarctica
+# #-----------------------------------------------------------------------------------
+ # gmt psbasemap  $J_Antarctica $R_Antarctica   -Y11.2 -X4 -B0g0/0g0 -G200 -O -K -V  >> ${PlotPs}
+ # cat ${ContinentalGL} |\
+ # gmt psxy $J_Antarctica $R_Antarctica  -Sc0.01 -O -K -V  >> ${PlotPs}
+ # echo "26,   -70" |\
+ # gmt psxy $J_Antarctica $R_Antarctica  -Sc0.2 -Gred -O    >> ${PlotPs}
+
+
+## Export to PDF. Mac occassinoally kills the transparency
+
+gmt psconvert $PlotPs -Tf -A -S
+gmt psconvert $PlotPs -Tg -A -S
+gmt psconvert $PlotPs -Te -A -S
+##### Remove the -dSAFER flag to maintain transparancy!!
+  #gs -q -dNOPAUSE -dBATCH -dPDFSETTINGS=/prepress -dDownsampleColorImages=false -dDownsampleGrayImages=false -dDownsampleMonoImages=false -dUseFlateCompression=true -dEmbedAllFonts=true -dSubsetFonts=true -dMonoImageFilter=/FlateEncode -dAutoFilterGrayImages=false -dGrayImageFilter=/FlateEncode -dAutoFilterColorImages=false -dColorImageFilter=/FlateEncode -dSCANCONVERTERTYPE=2 -dMaxBitmap=2147483647 -dUseFastColor=true -sDEVICE=pdfwrite  -g5047x4949 -r720 -sOutputFile='Fig1.pdf' -f'./psconvert_14986d.eps'
+
+# Some Cleanup
+rm psconvert_*
+rm gmt.conf
+rm gmt.history
+rm $PlotPs
+
+open $PlotPdf
