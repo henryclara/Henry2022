@@ -1,0 +1,5 @@
+These directories contain the Elmer/Ice code used to generate the model output as well as the postprocessing code for the paper Henry et al.: "Hysteretic evolution of ice rises and ice rumples with variations in sea level". The "ModelFiles" directory contains the Elmer/Ice sif files and the "PostProcessingFiles" contains the code used to generate the figures in the paper (written in python). The gmt code used to generate the rumple radargram figure is also included.
+
+The model code was written by the Elmer/Ice developers (https://github.com/ElmerCSC/elmerfem), with changes made by the authors of the paper: Clara Henry, Clemens Schannwell, Reinhard Drews and Vjeran Visnevic.
+
+Last updated on March 15, 2022 by Clara Henry.
